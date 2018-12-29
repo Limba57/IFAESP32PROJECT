@@ -1,6 +1,7 @@
 // Load Wi-Fi library
   #include <WiFi.h>
-
+  #include <Arduino.h>
+  
 // Replace with your network credentials
   const char* ssid     = "TEST123";
   const char* password = "11111111";
@@ -14,32 +15,27 @@
 // Assign output variables to GPIO pins
   const int ledPin = 13; //Pin de la LED témoin
   const int pResistor = 37; //Pin de la Photorésistance
-  const int relais = 12; //Pin du relais
-  const int alarme = 14; //Pin alarme
-  int value; //Valeur de l'intensité lumineuse
+  const int output14 = 14;
+  const int output12 = 12;
+  const int output27 = 27;
 
-  String outputRelaisState = "off";
-  int alarmeState = LOW;
-  
-// Generally, you should use "unsigned long" for variables that hold time
-// The value will quickly become too large for an int to store
-  unsigned long previousMillis = 0;        // will store last time LED was updated
-  unsigned long previousMillis2 = 0;
-  // constants won't change:
-  const long interval = 500;           // interval at which to blink (milliseconds)
-  const long interval2 = 1000;
-  
+  String output14State = "off";
+  String output12State = "off";
+  String output13State = "off";
+  String output27State = "off";
+  bool warning;
+  int value;
+    
 void setup() {
   
-  Serial.begin(115200);
+  Serial.begin(9600);
   
   // Initialisation des variables
   pinMode(ledPin, OUTPUT);
-  pinMode(relais, OUTPUT);
-  pinMode(alarme, OUTPUT);
+  pinMode(output14, OUTPUT);
+  pinMode(output12, OUTPUT);
+  pinMode(output27, OUTPUT);
   pinMode(pResistor, INPUT);
-
-  digitalWrite(relais,LOW);
   
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
@@ -60,40 +56,16 @@ void setup() {
 
 void loop(){
 
-unsigned long currentMillis = millis();
-
-  if (currentMillis - previousMillis >= interval) {
-    // save the last time you blinked the LED
-    previousMillis = currentMillis;
-// On prend la valeur de la photorésistance
-  value = analogRead(pResistor);
-  
+ value = analogRead(pResistor);
 //Valeur de seuil à définir
-  if (value < 10){
+  if (value < 400 ){
     digitalWrite(ledPin, LOW);  //Turn led off
-    digitalWrite(alarme, LOW);
+    output13State = "off";
   }else{
     digitalWrite(ledPin, HIGH); //Turn led on
-    
-    }
+    output13State = "on";
   }
-
-  if (value >= 10){
-      if (currentMillis - previousMillis2 >= interval2) {
-    // save the last time you blinked the LED
-    previousMillis2 = currentMillis;
-
-    // if the LED is off turn it on and vice-versa:
-    if (alarmeState == LOW) {
-      alarmeState = HIGH;
-    } else {
-      alarmeState = LOW;
-    }
-
-    // set the LED with the ledState of the variable:
-    digitalWrite(alarme, alarmeState);
-  }
-  }
+  delay(500);
   
 WiFiClient client = server.available();   // Listen for incoming clients
 
@@ -115,17 +87,6 @@ if (client) {                             // If a new client connects,
           client.println("Content-type:text/html");
           client.println("Connection: close");
           client.println();
-
- // turns the GPIOs on and off
- if (header.indexOf("GET /26/on") >= 0) {
-     Serial.println("GPIO 26 on");
-     outputRelaisState = "on";
-     digitalWrite(relais, HIGH);
- } else if (header.indexOf("GET /26/off") >= 0) {
-     Serial.println("GPIO 26 off");
-     outputRelaisState = "off";
-     digitalWrite(relais, LOW);
- }
               
 // Affichage du code HTML
   client.println("<!DOCTYPE html><html>");
@@ -140,24 +101,58 @@ if (client) {                             // If a new client connects,
             
 // En tête de page
   client.println("<body><h1>ESP32 Web Server</h1>");
+
+  client.println(value);
             
 // Affichage de l'état de la LED témoin  
   client.println("<p>GPIO 26 - State </p>");       
-  if (value <10) {
+  if (output13State == "off") {
     client.println("<p>La lumiere est eteinte</p>");
   } else {
     client.println("<p>La lumiere est allumee</p>");
     } 
 
-// Display current state, and ON/OFF buttons for GPIO relais  
-  client.println("<p>GPIO 26 - State " + outputRelaisState + "</p>");
-            // If the output26State is off, it displays the ON button       
-  if (outputRelaisState=="off") {
-    client.println("<p><a href=\"/26/on\"><button class=\"button\">ON</button></a></p>");
-  } else {
-    client.println("<p><a href=\"/26/off\"><button class=\"button button2\">OFF</button></a></p>");
-    } 
-                   
+  if (header.indexOf("GET /12/on") >= 0) {
+              Serial.println("GPIO 12 on");
+              output12State = "on";
+              digitalWrite(output12, HIGH);
+            } else if (header.indexOf("GET /12/off") >= 0) {
+              Serial.println("GPIO 12 off");
+              output12State = "off";
+              digitalWrite(output12, LOW);
+            }
+
+  if (header.indexOf("GET /14/on") >= 0) {
+    Serial.println("GPIO 14 on");
+    output14State = "on";
+    output27State = "on";
+    digitalWrite(output14, HIGH);
+    digitalWrite(output27, HIGH);
+  } else if (header.indexOf("GET /14/off") >= 0) {
+    Serial.println("GPIO 14 off");
+    output14State = "off";
+    output27State = "off";
+    digitalWrite(output14, LOW);
+    digitalWrite(output27, LOW);
+  }
+
+  
+    client.println("<p>GPIO 27 - State " + output14State + "</p>");
+            // If the output27State is off, it displays the ON button       
+            if (output14State=="off") {
+              client.println("<p><a href=\"/14/on\"><button class=\"button\">ON</button></a></p>");
+            } else {
+              client.println("<p><a href=\"/14/off\"><button class=\"button button2\">OFF</button></a></p>");
+            }
+
+  client.println("<p>GPIO 12 - State " + output12State + "</p>");
+            // If the output27State is off, it displays the ON button       
+            if (output12State=="off") {
+              client.println("<p><a href=\"/12/on\"><button class=\"button\">ON</button></a></p>");
+            } else {
+              client.println("<p><a href=\"/12/off\"><button class=\"button button2\">OFF</button></a></p>");
+            }
+                  
   client.println("</body></html>");
             
 // The HTTP response ends with another blank line
